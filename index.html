@@ -14,11 +14,12 @@
             background-color: #050505;
             color: #f5f5f5;
             overflow-x: hidden;
+            user-select: none;
         }
         h1, h2, h3, .font-royal {
             font-family: 'Playfair Display', serif;
         }
-        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #050505; }
         ::-webkit-scrollbar-thumb { background: #b48a3e; border-radius: 10px; }
         
@@ -45,16 +46,16 @@
 
         .glass-royal {
             background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: 1px solid rgba(180, 138, 62, 0.15);
         }
 
         .masonry-grid {
             column-count: 2;
-            column-gap: 1.5rem;
+            column-gap: 1rem;
         }
-        @media (min-width: 768px) { .masonry-grid { column-count: 3; } }
+        @media (min-width: 768px) { .masonry-grid { column-count: 3; column-gap: 1.5rem; } }
         @media (min-width: 1024px) { .masonry-grid { column-count: 4; } }
 
         .masonry-item {
@@ -67,17 +68,44 @@
             100% { transform: translateX(-50%); }
         }
         .animate-marquee-slow {
-            display: flex; width: fit-content; animation: slow-marquee 100s linear infinite;
+            display: flex; width: fit-content; animation: slow-marquee 80s linear infinite;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        @keyframes text-reveal {
-            from { opacity: 0; transform: translateY(10px); filter: blur(5px); }
-            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
-        .animate-text-reveal { animation: text-reveal 0.6s ease forwards; }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+
+        .royal-card {
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .royal-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(180, 138, 62, 0.5);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(180,138,62,0.1);
+        }
+
+        /* Modal / Drawer Transitions */
+        .drawer-overlay {
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+        }
+        .drawer-overlay.active { opacity: 1; pointer-events: auto; }
+        .drawer-content {
+            transform: translateX(100%); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .drawer-content.active { transform: translateX(0); }
+
+        .modal-container {
+            opacity: 0; pointer-events: none; transition: all 0.4s ease;
+            transform: scale(0.95);
+        }
+        .modal-container.active {
+            opacity: 1; pointer-events: auto; transform: scale(1);
+        }
     </style>
 <script type="importmap">
 {
@@ -91,8 +119,120 @@
 }
 </script>
 </head>
-<body>
-    <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+<body class="selection:bg-amber-500/30">
+    <canvas id="particle-canvas" class="fixed inset-0 pointer-events-none z-[9999]" style="mix-blend-mode: screen;"></canvas>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 w-full bg-black/80 backdrop-blur-md border-b border-amber-500/20 px-4 md:px-12 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 border-2 border-amber-500 rounded-full flex items-center justify-center transform rotate-45 hover:rotate-180 transition-transform duration-700">
+                <span class="text-amber-500 font-bold -rotate-45">S</span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-royal tracking-widest gold-gradient font-bold uppercase">Shani Fashion</h1>
+        </div>
+        <nav class="hidden md:flex space-x-8 text-[10px] uppercase tracking-widest text-amber-500/50">
+            <a href="#" class="hover:text-amber-500 transition-colors">Collection</a>
+            <a href="#" class="hover:text-amber-500 transition-colors">Atelier</a>
+            <a href="#" class="hover:text-amber-500 transition-colors">Heritage</a>
+        </nav>
+        <div class="flex items-center space-x-4">
+            <button id="cart-trigger" class="relative p-2 border border-amber-500/20 rounded-full hover:border-amber-500 transition-colors">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                <span id="cart-badge" class="absolute -top-1 -right-1 bg-amber-500 text-black text-[9px] font-bold w-4 h-4 rounded-full hidden items-center justify-center">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Marquee Banner -->
+    <div class="bg-amber-500/5 py-1.5 border-y border-amber-500/10 overflow-hidden">
+        <div class="animate-marquee-slow whitespace-nowrap">
+            <span class="text-[7px] md:text-[8px] uppercase tracking-[1em] text-amber-500/30 px-12">SHANI FASHION &bull; ROYAL HERITAGE &bull; IMPERIAL ATELIER &bull; LUXURY REDEFINED</span>
+            <span class="text-[7px] md:text-[8px] uppercase tracking-[1em] text-amber-500/30 px-12">SHANI FASHION &bull; ROYAL HERITAGE &bull; IMPERIAL ATELIER &bull; LUXURY REDEFINED</span>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="relative h-[45vh] md:h-[70vh] flex flex-col items-center justify-center overflow-hidden bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&q=80&w=1200');">
+        <div class="absolute inset-0 bg-gradient-to-b from-black/90 via-black/40 to-[#050505]"></div>
+        <div class="relative text-center z-10 px-6">
+            <h2 class="text-7xl md:text-[14rem] font-royal leading-none tracking-tighter mb-2 magical-text">SHANI</h2>
+            <p class="text-white text-[10px] md:text-xs font-bold tracking-[0.6em] uppercase mb-4 opacity-80">The Imperial Wardrobe</p>
+            <div class="w-16 h-px bg-amber-500/40 mx-auto"></div>
+        </div>
+    </section>
+
+    <!-- Filters -->
+    <div class="container mx-auto px-4 -mt-8 relative z-20">
+        <div class="glass-royal p-2 rounded-full flex items-center space-x-2 overflow-x-auto no-scrollbar" id="filter-bar">
+            <!-- Filter buttons injected by JS -->
+        </div>
+    </div>
+
+    <!-- Product Grid -->
+    <main class="container mx-auto px-4 py-12">
+        <div id="product-grid" class="masonry-grid">
+            <!-- Product cards injected by JS -->
+        </div>
+        <div id="no-results" class="hidden text-center py-24 glass-royal rounded-[3rem] p-8">
+            <p class="text-amber-500/40 font-royal italic text-sm">No artifacts match your selection.</p>
+            <button onclick="window.resetFilters()" class="mt-4 text-[9px] uppercase text-amber-500 border border-amber-500/20 px-6 py-2 rounded-full hover:bg-amber-500/10 transition-all">Clear Filters</button>
+        </div>
+    </main>
+
+    <!-- AI Stylist Trigger -->
+    <button id="ai-trigger" class="fixed bottom-6 right-6 z-[100] animate-float glass-royal border-amber-500/40 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform">
+        <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-black font-black text-xs">AI</div>
+    </button>
+
+    <!-- Cart Drawer -->
+    <div id="cart-overlay" class="drawer-overlay fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm"></div>
+    <div id="cart-drawer" class="drawer-content fixed right-0 top-0 h-full w-full max-w-sm bg-neutral-950/95 border-l border-amber-500/10 z-[160] flex flex-col p-8">
+        <div class="flex justify-between items-center mb-10">
+            <h2 class="text-2xl font-royal gold-gradient uppercase tracking-widest">Treasury</h2>
+            <button id="cart-close" class="text-amber-500/50 hover:text-amber-500 p-2 text-xl">✕</button>
+        </div>
+        <div id="cart-items" class="flex-grow overflow-y-auto space-y-6 no-scrollbar">
+            <!-- Items injected by JS -->
+        </div>
+        <div id="cart-footer" class="pt-8 border-t border-amber-500/10 space-y-6">
+            <div class="flex justify-between text-xs uppercase tracking-widest text-amber-500/50">
+                <span>Total Value</span>
+                <span id="cart-total" class="text-amber-400 font-bold">Rs. 0</span>
+            </div>
+            <button id="checkout-btn" class="w-full bg-amber-500 text-black py-5 rounded-full text-[10px] uppercase font-bold tracking-[0.4em] shadow-xl hover:bg-amber-400 transition-all active:scale-95">Complete Acquisition</button>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="product-modal-container" class="modal-container fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" id="modal-close-bg"></div>
+        <div class="glass-royal max-w-3xl w-full max-h-[85vh] overflow-hidden relative flex flex-col md:flex-row rounded-[2.5rem] shadow-2xl">
+            <button id="modal-close-btn" class="absolute top-6 right-6 z-20 bg-black/50 p-3 rounded-full text-amber-500">✕</button>
+            <div class="w-full md:w-1/2 h-64 md:h-auto overflow-hidden">
+                <img id="modal-image" src="" alt="" class="w-full h-full object-cover">
+            </div>
+            <div class="w-full md:w-1/2 p-10 flex flex-col justify-center space-y-6">
+                <div>
+                    <span id="modal-category" class="text-amber-500 uppercase tracking-[0.5em] text-[9px] font-bold"></span>
+                    <h2 id="modal-name" class="text-4xl font-royal gold-gradient"></h2>
+                </div>
+                <p id="modal-description" class="text-gray-400 text-xs italic leading-relaxed"></p>
+                <div class="pt-4 border-t border-amber-500/10">
+                    <span id="modal-price" class="text-3xl font-bold text-amber-400 block mb-6"></span>
+                    <button id="modal-add-to-cart" class="w-full bg-amber-500 text-black py-5 rounded-full uppercase tracking-[0.3em] font-bold text-[10px] hover:bg-amber-400">Add to Collection</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-black py-20 text-center border-t border-amber-500/5">
+        <h2 class="text-xl font-royal gold-gradient uppercase tracking-widest mb-4">SHANI ATELIER</h2>
+        <p class="text-[8px] text-gray-700 tracking-[0.5em]">&copy; MMXXV SHANI FASHION. ALL TRANSACTIONS ARE ARTISTIC SIMULATIONS.</p>
+    </footer>
+
+    <script type="module" src="./index.js"></script>
 </body>
 </html>
