@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHANI | Imperial Store</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SHANI | Imperial Wardrobe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,54 +18,30 @@
             background-color: #050505;
             color: #f5f5f5;
             overflow-x: hidden;
-            cursor: none; /* Hide default for royal cursor */
+            -webkit-tap-highlight-color: transparent;
         }
-        h1, h2, h3, .font-royal {
-            font-family: 'Playfair Display', serif;
-        }
+        h1, h2, h3, .font-royal { font-family: 'Playfair Display', serif; }
 
-        /* Cinematic Grain Overlay */
+        /* Cinematic Overlays */
         body::after {
             content: "";
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background-image: url("https://upload.wikimedia.org/wikipedia/commons/7/76/1k_filmgrain.png");
-            opacity: 0.04;
+            opacity: 0.03;
             pointer-events: none;
             z-index: 10000;
         }
 
-        /* Custom Royal Cursor */
-        #royal-cursor {
-            width: 30px;
-            height: 30px;
-            border: 1px solid var(--royal-gold);
-            border-radius: 50%;
-            position: fixed;
+        .vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.8) 100%);
             pointer-events: none;
-            z-index: 10001;
-            transition: transform 0.15s ease-out, width 0.3s, height 0.3s, border-color 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #royal-cursor::after {
-            content: '';
-            width: 4px;
-            height: 4px;
-            background: var(--light-gold);
-            border-radius: 50%;
+            z-index: 2;
         }
 
-        /* Scroll Progress Thread */
-        #scroll-thread {
-            position: fixed;
-            top: 0; left: 0; height: 2px;
-            background: linear-gradient(to right, transparent, var(--royal-gold), var(--light-gold));
-            z-index: 10002;
-            width: 0%;
-        }
-
+        /* Gold Gradient Text */
         .gold-gradient {
             background: linear-gradient(to right, var(--royal-gold), var(--light-gold), var(--royal-gold));
             -webkit-background-clip: text;
@@ -77,66 +53,114 @@
             background-size: 200% auto;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: shine 5s linear infinite;
+            animation: shine 6s linear infinite;
         }
-
         @keyframes shine { to { background-position: 200% center; } }
 
+        /* Glassmorphism */
         .glass-royal {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(24px);
-            border: 1px solid rgba(180, 138, 62, 0.15);
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(180, 138, 62, 0.12);
         }
 
-        .masonry-grid {
-            column-count: 2;
-            column-gap: 1.5rem;
+        /* Hero Carousel */
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 2s ease-in-out, transform 10s ease-out;
+            background-size: cover;
+            background-position: center;
         }
-        @media (min-width: 1024px) { .masonry-grid { column-count: 4; } }
+        .hero-slide.active { opacity: 1; transform: scale(1.1); }
 
-        .masonry-item { break-inside: avoid; margin-bottom: 2rem; }
-
-        .royal-card {
-            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        /* Responsive Grid */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
         }
-        .royal-card:hover {
-            transform: translateY(-12px);
-            border-color: rgba(180, 138, 62, 0.6);
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        @media (min-width: 768px) {
+            .product-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 24px;
+            }
         }
 
-        /* Acquisition Toast */
-        #notification-center {
+        /* Custom Drawer for AI Stylist & Cart */
+        .drawer {
             position: fixed;
-            bottom: 2rem;
-            left: 2rem;
+            inset: 0;
             z-index: 500;
+            visibility: hidden;
+            transition: visibility 0.4s;
+        }
+        .drawer.active { visibility: visible; }
+        .drawer-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .drawer.active .drawer-overlay { opacity: 1; }
+        .drawer-content {
+            position: absolute;
+            bottom: 0; right: 0;
+            width: 100%;
+            height: 85vh;
+            background: #080808;
+            border-top: 1px solid rgba(180, 138, 62, 0.2);
+            transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
         }
-        .toast {
-            background: rgba(10, 10, 10, 0.9);
-            border-left: 3px solid var(--royal-gold);
-            padding: 1rem 1.5rem;
-            border-radius: 0 1rem 1rem 0;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            color: rgba(255,255,255,0.7);
-            animation: slideIn 0.5s forwards, fadeOut 0.5s 4.5s forwards;
-            backdrop-filter: blur(10px);
+        @media (min-width: 768px) {
+            .drawer-content {
+                width: 450px;
+                height: 100%;
+                bottom: auto;
+                top: 0;
+                transform: translateX(100%);
+                border-top: none;
+                border-left: 1px solid rgba(180, 138, 62, 0.2);
+            }
+            .drawer.active .drawer-content { transform: translateX(0); }
         }
-        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
+        .drawer.active .drawer-content { transform: translateY(0); }
+        @media (min-width: 768px) { .drawer.active .drawer-content { transform: translateX(0); } }
 
-        .ornament-divider {
-            height: 100px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0.3;
+        /* Royal Progress Bar */
+        #scroll-thread {
+            position: fixed;
+            top: 0; left: 0; height: 2px;
+            background: linear-gradient(to right, var(--royal-gold), var(--light-gold));
+            z-index: 10002;
+            width: 0%;
         }
+
+        /* Hide scrollbars but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .royal-btn {
+            background: var(--royal-gold);
+            color: black;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.3em;
+            padding: 1.25rem;
+            border-radius: 9999px;
+            font-size: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 10px 20px rgba(180, 138, 62, 0.2);
+        }
+        .royal-btn:active { transform: scale(0.95); opacity: 0.8; }
     </style>
 <script type="importmap">
 {
@@ -151,112 +175,128 @@
 </script>
 </head>
 <body class="selection:bg-amber-500/30">
-    <div id="royal-cursor"></div>
     <div id="scroll-thread"></div>
     <canvas id="particle-canvas" class="fixed inset-0 pointer-events-none z-[9999]" style="mix-blend-mode: screen;"></canvas>
 
-    <!-- Header -->
-    <header class="sticky top-0 z-50 w-full bg-black/80 backdrop-blur-md border-b border-amber-500/10 px-6 md:px-12 py-5 flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 border border-amber-500/40 rounded-full flex items-center justify-center transform hover:rotate-90 transition-transform duration-1000">
+    <!-- Navigation -->
+    <header class="sticky top-0 z-50 w-full bg-black/90 backdrop-blur-md border-b border-amber-500/10 px-4 md:px-12 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 md:w-10 md:h-10 border border-amber-500/30 rounded-full flex items-center justify-center">
                 <span class="text-amber-500 font-bold text-xs">S</span>
             </div>
-            <h1 class="text-xl md:text-2xl font-royal tracking-[0.4em] gold-gradient font-bold uppercase">Shani</h1>
+            <h1 class="text-lg md:text-2xl font-royal tracking-widest gold-gradient uppercase font-bold">Shani Fashion</h1>
         </div>
-        <div class="flex items-center space-x-8">
-            <button id="cart-trigger" class="relative group p-2">
-                <svg class="w-6 h-6 text-amber-500/70 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                <span id="cart-badge" class="absolute -top-1 -right-1 bg-amber-500 text-black text-[8px] font-bold w-4 h-4 rounded-full hidden items-center justify-center shadow-[0_0_15px_rgba(180,138,62,0.8)]">0</span>
-            </button>
-        </div>
+        <button id="cart-trigger" class="relative p-2 rounded-full border border-amber-500/10 hover:border-amber-500/40 transition-all">
+            <svg class="w-5 h-5 md:w-6 md:h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <span id="cart-badge" class="absolute -top-1 -right-1 bg-amber-500 text-black text-[9px] font-bold w-4 h-4 rounded-full hidden items-center justify-center">0</span>
+        </button>
     </header>
 
-    <div id="notification-center"></div>
+    <!-- Marquee -->
+    <div class="bg-amber-500/5 py-1 border-b border-amber-500/10 overflow-hidden">
+        <div class="flex animate-[marquee_40s_linear_infinite] whitespace-nowrap">
+            <span class="text-[7px] md:text-[8px] uppercase tracking-[1em] text-amber-500/40 px-8">IMPERIAL ATELIER &bull; LIMITED EDITION &bull; ROYAL HERITAGE &bull; LUXURY REDEFINED</span>
+            <span class="text-[7px] md:text-[8px] uppercase tracking-[1em] text-amber-500/40 px-8">IMPERIAL ATELIER &bull; LIMITED EDITION &bull; ROYAL HERITAGE &bull; LUXURY REDEFINED</span>
+        </div>
+    </div>
+    <style>@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }</style>
 
-    <!-- Hero -->
-    <section class="relative h-[60vh] md:h-[85vh] flex flex-col items-center justify-center overflow-hidden">
-        <div class="absolute inset-0 bg-cover bg-fixed bg-center" style="background-image: url('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=1600'); transform: scale(1.1);"></div>
-        <div class="absolute inset-0 bg-gradient-to-b from-black via-black/40 to-[#050505]"></div>
+    <!-- Cinematic Hero Carousel -->
+    <section class="relative h-[65vh] md:h-[85vh] flex flex-col items-center justify-center overflow-hidden">
+        <div id="hero-carousel-container" class="absolute inset-0 z-0">
+            <div class="hero-slide active" style="background-image: url('https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&q=80&w=1600');"></div>
+            <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1600');"></div>
+            <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=1600');"></div>
+        </div>
+        <div class="vignette"></div>
+        <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-[#050505] z-1"></div>
         
         <div class="relative text-center z-10 px-6">
-            <h2 class="text-8xl md:text-[18rem] font-royal leading-none tracking-tighter mb-4 magical-text opacity-90">SHANI</h2>
-            <p class="text-amber-500/60 text-[10px] md:text-xs font-bold tracking-[1em] uppercase mb-8">Established in Luxury</p>
-            <div class="w-32 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent mx-auto"></div>
+            <h2 class="text-7xl md:text-[16rem] font-royal leading-none tracking-tighter mb-4 magical-text">SHANI</h2>
+            <div class="flex flex-col items-center space-y-4">
+                <p class="text-white/80 text-[10px] md:text-sm font-bold tracking-[0.8em] uppercase">The Collection of Queens</p>
+                <div class="w-20 h-px bg-amber-500/50"></div>
+            </div>
         </div>
     </section>
 
-    <div class="ornament-divider">
-        <svg width="200" height="40" viewBox="0 0 200 40" fill="none" class="stroke-amber-500/40">
-            <path d="M0 20C40 20 60 5 100 20C140 35 160 20 200 20" stroke-width="0.5" />
-            <circle cx="100" cy="20" r="3" />
-        </svg>
-    </div>
-
     <!-- Collection -->
-    <main class="container mx-auto px-6 py-12">
-        <div class="flex flex-col md:flex-row justify-between items-end mb-16 space-y-4">
-            <div>
-                <h3 class="text-4xl font-royal text-white mb-2 italic">The Current Edition</h3>
-                <p class="text-[9px] uppercase tracking-[0.4em] text-amber-500/40">Filtered for the extraordinary</p>
+    <main class="container mx-auto px-4 md:px-12 py-12 relative z-10">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-12 space-y-6 md:space-y-0">
+            <h3 class="text-3xl md:text-5xl font-royal gold-gradient italic">Artifacts</h3>
+            <div id="filter-bar" class="flex items-center space-x-2 overflow-x-auto no-scrollbar max-w-full pb-2">
+                <!-- Filters injected by JS -->
             </div>
-            <div class="glass-royal p-1.5 rounded-full flex items-center space-x-2 overflow-x-auto no-scrollbar max-w-full" id="filter-bar"></div>
         </div>
 
-        <div id="product-grid" class="masonry-grid"></div>
-        <div id="no-results" class="hidden text-center py-40 glass-royal rounded-[4rem]">
-            <p class="text-amber-500/20 font-royal italic">This selection does not exist in our heritage.</p>
+        <div id="product-grid" class="product-grid">
+            <!-- Products injected by JS -->
+        </div>
+
+        <div id="no-results" class="hidden text-center py-32 glass-royal rounded-[3rem]">
+            <p class="text-amber-500/20 font-royal italic text-lg">No heritage matches this path.</p>
         </div>
     </main>
 
-    <!-- UI Overlays (Cart, Modals, etc) -->
-    <div id="cart-overlay" class="fixed inset-0 z-[150] bg-black/90 backdrop-blur-xl opacity-0 pointer-events-none transition-opacity duration-500"></div>
-    <div id="cart-drawer" class="fixed right-0 top-0 h-full w-full max-w-md bg-[#080808] border-l border-amber-500/10 z-[160] transform translate-x-full transition-transform duration-700 flex flex-col p-12">
-        <div class="flex justify-between items-center mb-16">
-            <h2 class="text-3xl font-royal gold-gradient uppercase tracking-widest">Treasury</h2>
-            <button id="cart-close" class="text-amber-500/30 hover:text-amber-500 text-2xl">✕</button>
-        </div>
-        <div id="cart-items" class="flex-grow overflow-y-auto space-y-8 no-scrollbar"></div>
-        <div class="pt-12 border-t border-amber-500/10 space-y-8">
-            <div class="flex justify-between text-xs uppercase tracking-[0.3em] text-amber-500/50">
-                <span>Imperial Total</span>
-                <span id="cart-total" class="text-amber-400 font-bold">Rs. 0</span>
+    <!-- AI STYLIST DRAWER (The Epic UI) -->
+    <div id="ai-drawer" class="drawer">
+        <div class="drawer-overlay" id="ai-overlay"></div>
+        <div class="drawer-content">
+            <div class="flex justify-between items-center mb-10">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center font-bold text-xs shadow-lg shadow-amber-500/30">AI</div>
+                    <span class="text-[10px] uppercase tracking-widest text-amber-500 font-bold">Imperial Stylist</span>
+                </div>
+                <button id="ai-close" class="text-white/20 hover:text-white p-2 text-xl">✕</button>
             </div>
-            <button id="checkout-btn" class="w-full bg-amber-500 text-black py-6 rounded-full text-[10px] uppercase font-bold tracking-[0.5em] hover:bg-white transition-all">Acquire Collection</button>
+
+            <div id="ai-wizard" class="flex-grow flex flex-col justify-center space-y-8">
+                <div id="ai-question-container" class="space-y-4">
+                    <p id="ai-question" class="text-2xl md:text-3xl font-royal text-white leading-tight"></p>
+                    <div id="ai-options" class="grid grid-cols-1 gap-3 pt-4">
+                        <!-- Options injected by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <div id="ai-processing" class="hidden flex-grow flex flex-col items-center justify-center text-center space-y-6">
+                <div class="w-20 h-20 border-t-2 border-amber-500 rounded-full animate-spin"></div>
+                <p class="text-amber-500 font-royal text-xl animate-pulse">Curating your legacy...</p>
+            </div>
         </div>
     </div>
 
-    <!-- Product Modal -->
-    <div id="product-modal-container" class="fixed inset-0 z-[200] opacity-0 pointer-events-none transition-all duration-500 flex items-center justify-center p-6">
-        <div class="absolute inset-0 bg-black/95 backdrop-blur-2xl" id="modal-close-bg"></div>
-        <div class="glass-royal max-w-5xl w-full h-[80vh] overflow-hidden relative flex flex-col md:flex-row rounded-[4rem] shadow-2xl scale-95 transition-transform duration-500" id="modal-box">
-            <button id="modal-close-btn" class="absolute top-8 right-8 z-30 text-amber-500 text-2xl">✕</button>
-            <div class="w-full md:w-3/5 h-1/2 md:h-full overflow-hidden">
-                <img id="modal-image" src="" alt="" class="w-full h-full object-cover">
+    <!-- CART DRAWER -->
+    <div id="cart-drawer" class="drawer">
+        <div class="drawer-overlay" id="cart-overlay"></div>
+        <div class="drawer-content">
+            <div class="flex justify-between items-center mb-10">
+                <h2 class="text-3xl font-royal gold-gradient uppercase tracking-widest font-bold">Treasury</h2>
+                <button id="cart-close-btn" class="text-white/20 hover:text-white p-2 text-xl">✕</button>
             </div>
-            <div class="w-full md:w-2/5 p-16 flex flex-col justify-center space-y-8">
-                <div>
-                    <span id="modal-category" class="text-amber-500/50 uppercase tracking-[0.6em] text-[8px] font-bold block mb-2"></span>
-                    <h2 id="modal-name" class="text-5xl font-royal gold-gradient leading-tight"></h2>
+            <div id="cart-items" class="flex-grow overflow-y-auto space-y-6 no-scrollbar">
+                <!-- Items injected by JS -->
+            </div>
+            <div class="pt-8 border-t border-amber-500/10 space-y-6">
+                <div class="flex justify-between items-end">
+                    <span class="text-[10px] uppercase tracking-widest text-white/30">Total Value</span>
+                    <span id="cart-total" class="text-2xl font-bold text-amber-400">Rs. 0</span>
                 </div>
-                <p id="modal-description" class="text-gray-400 text-xs italic leading-relaxed tracking-wider"></p>
-                <div class="pt-8 border-t border-amber-500/10">
-                    <span id="modal-price" class="text-3xl font-bold text-amber-200 block mb-10"></span>
-                    <button id="modal-add-to-cart" class="w-full bg-amber-500 text-black py-6 rounded-full uppercase tracking-[0.4em] font-bold text-[9px] hover:bg-amber-400">Add to Treasury</button>
-                </div>
+                <button id="checkout-btn" class="royal-btn w-full">Complete Acquisition</button>
             </div>
         </div>
     </div>
 
     <!-- AI Trigger -->
-    <button id="ai-trigger" class="fixed bottom-10 right-10 z-[100] w-16 h-16 rounded-full glass-royal border-amber-500/30 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
-        <div class="w-12 h-12 rounded-full bg-amber-500 text-black flex items-center justify-center font-black text-xs">AI</div>
+    <button id="ai-trigger" class="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] w-14 h-14 md:w-16 md:h-16 rounded-full glass-royal border-amber-500/30 flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-transform">
+        <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-amber-500 text-black flex items-center justify-center font-black text-[10px]">AI</div>
     </button>
 
-    <footer class="bg-black py-32 text-center border-t border-amber-500/5 mt-20">
-        <h2 class="text-2xl font-royal gold-gradient uppercase tracking-[1em] mb-6">Shani Atelier</h2>
-        <p class="text-[8px] text-gray-700 tracking-[0.5em]">&copy; MMXXV SHANI FASHION &bull; ALL TRANSACTIONS ARE ARTISTIC SIMULATIONS</p>
+    <footer class="bg-black py-24 text-center border-t border-amber-500/5 mt-20">
+        <h2 class="text-2xl font-royal gold-gradient uppercase tracking-[0.5em] mb-4">Shani Atelier</h2>
+        <p class="text-[8px] md:text-[10px] text-gray-700 tracking-[0.3em] px-8">&copy; MMXXV SHANI FASHION &bull; ALL RIGHTS RESERVED &bull; SIMULATED LUXURY</p>
     </footer>
 
     <script type="module" src="./index.js"></script>
