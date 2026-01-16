@@ -1,0 +1,7 @@
+{
+  "name": "SHANI FASHION - Royal Elegance",
+  "description": "A high-end, luxury e-commerce experience for women's fashion featuring royal themes, magical particle animations, and advanced filtering.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
