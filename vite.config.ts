@@ -1,9 +1,9 @@
 
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  // If your repo is 'shani-store', set base to '/shani-store/'
-  // For standard user sites (username.github.io), use '/'
+  plugins: [react()],
   base: './', 
   build: {
     outDir: 'dist',
