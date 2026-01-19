@@ -1,323 +1,483 @@
-// --- CONSTANTS ---
-const CATEGORIES = {
-    EVENING: 'Evening Wear',
-    ROYAL: 'Royal Occasions',
-    LUXE: 'Casual Luxe',
-    BUSINESS: 'Business Elite',
-    BRIDAL: 'Imperial Bridal'
-};
+// --- INITIALIZE SUPABASE ---
+const SUPABASE_URL = "https://vrzlcfszahsxhjiyomee.supabase.co";
+const SUPABASE_KEY = "sb_publishable_T96vtoe0I2R5n7BLCE_DfA_Zw8S-ltj";
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const AGE_GROUPS = {
-    JUNIOR: 'Junior Royalty',
-    YOUNG_ADULT: 'Graceful Youth',
-    MATURE: 'Majestic Elegance',
-    TIMELESS: 'Timeless Legacy'
-};
-
-const PRODUCTS = [
-    { id: 'SH-01', name: 'Aetheris Dress', description: 'Hand-stitched silk with moon-stone accents.', price: 1250000, category: CATEGORIES.EVENING, ageGroup: AGE_GROUPS.MATURE, image: 'https://i.ibb.co/LXw6tbPN/219436cd090b78ecb532d0215f902573.jpg', rating: 4.9 },
-    { id: 'SH-02', name: 'Regent Blazer', description: 'Tailored premium wool for elite presence.', price: 850000, category: CATEGORIES.BUSINESS, ageGroup: AGE_GROUPS.YOUNG_ADULT, image: 'https://i.ibb.co/tMxv9BZ1/eb348ad80adc84fbbd6ce5c03dcf8413.jpg', rating: 4.8 },
-    { id: 'SH-03', name: 'Azure Silk Gown', description: 'Flowing satin with imperial embroidery.', price: 450000, category: CATEGORIES.LUXE, ageGroup: AGE_GROUPS.JUNIOR, image: 'https://i.ibb.co/3yqRTH4D/ee071bfe9dd5f341acfe6dae90ccae51.jpg', rating: 4.7 },
-    { id: 'SH-04', name: 'Crown Jewel Cape', description: 'Limited heavy velvet gold bullion masterpiece.', price: 2800000, category: CATEGORIES.ROYAL, ageGroup: AGE_GROUPS.TIMELESS, image: 'https://i.ibb.co/JSmbbDv/8bd13d06c7679c42b9a45552de6a40fd.jpg', rating: 5.0 },
-    { id: 'SH-05', name: 'Onyx Evening Suit', description: 'Deep black silhouette with 24k gold threading.', price: 920000, category: CATEGORIES.LUXE, ageGroup: AGE_GROUPS.MATURE, image: 'https://i.ibb.co/1f2JzZcr/9db655c054eae5e2d1b8d117326630ce.jpg', rating: 4.9 },
-    { id: 'SH-07', name: 'Ivory Cathedral', description: 'The ultimate 4-meter train statement piece.', price: 4500000, category: CATEGORIES.BRIDAL, ageGroup: AGE_GROUPS.YOUNG_ADULT, image: 'https://i.ibb.co/LKBRdyD/444e6f0fe598878135d2d045d7fc10aa.jpg', rating: 5.0 },
-    { id: 'SH-08', name: 'Solaris Gown', description: 'Radiant gold finish with pleated layers.', price: 1150000, category: CATEGORIES.EVENING, ageGroup: AGE_GROUPS.TIMELESS, image: 'https://i.ibb.co/mFHjZd6N/6777b52052495598aaa844bbf5fb544f.jpg', rating: 4.7 },
-    { id: 'SH-09', name: 'Sovereign Bridal', description: 'Passed through generations of imperial brides.', price: 5800000, category: CATEGORIES.BRIDAL, ageGroup: AGE_GROUPS.MATURE, image: 'https://i.ibb.co/Fq6RjkPZ/d6149f37b1e7bf47a7ad0565c7368328.jpg', rating: 5.0 },
-    { id: 'SH-10', name: 'Golden Empress', description: '24k gold leaf details on mulberry silk.', price: 2980000, category: CATEGORIES.ROYAL, ageGroup: AGE_GROUPS.TIMELESS, image: 'https://i.ibb.co/bRqbT1HW/eb77f1b749702a5c3289d566c30b20f7.jpg', rating: 5.0 },
-    { id: 'SH-12', name: 'Midnight Noir', description: 'Sleek, modern commanding presence.', price: 950000, category: CATEGORIES.EVENING, ageGroup: AGE_GROUPS.JUNIOR, image: 'https://i.ibb.co/mVtx3cVd/6c3b85f95eda88d860b7c4aecc6783d0.jpg', rating: 4.7 }
-];
-
-// --- STATE ---
+// --- GLOBAL STATE ---
 let state = {
-    cart: JSON.parse(localStorage.getItem('shani_cart_v2') || '[]'),
+    user: null,
+    profile: null,
+    products: [],
+    orders: [],
+    cart: [],
+    view: 'user', 
     filters: { category: 'All' },
     heroIndex: 0,
-    aiStep: 0,
-    aiSelections: { category: '', ageGroup: '' }
+    authMode: 'login', // 'login' or 'signup'
+    lastEmail: ''
 };
 
-// --- DOM ELEMENTS ---
-const elements = {
-    grid: document.getElementById('product-grid'),
+// --- DOM ELEMENTS HELPER ---
+const getElements = () => ({
+    userView: document.getElementById('user-view'),
+    adminView: document.getElementById('admin-view'),
+    productGrid: document.getElementById('product-grid'),
     filterBar: document.getElementById('filter-bar'),
-    cartBadge: document.getElementById('cart-badge'),
-    cartDrawer: document.getElementById('cart-drawer'),
-    cartOverlay: document.getElementById('cart-overlay'),
     cartItems: document.getElementById('cart-items'),
     cartTotal: document.getElementById('cart-total'),
-    aiDrawer: document.getElementById('ai-drawer'),
-    aiOverlay: document.getElementById('ai-overlay'),
-    aiTrigger: document.getElementById('ai-trigger'),
-    aiClose: document.getElementById('ai-close'),
-    aiQuestion: document.getElementById('ai-question'),
-    aiOptions: document.getElementById('ai-options'),
-    aiProcessing: document.getElementById('ai-processing'),
-    aiWizard: document.getElementById('ai-wizard'),
-    scrollThread: document.getElementById('scroll-thread')
-};
-
-// --- HERO CAROUSEL ---
-const initHero = () => {
-    const slides = document.querySelectorAll('.hero-slide');
-    setInterval(() => {
-        slides[state.heroIndex].classList.remove('active');
-        state.heroIndex = (state.heroIndex + 1) % slides.length;
-        slides[state.heroIndex].classList.add('active');
-    }, 6000);
-};
-
-// --- SCROLL THREAD ---
-window.addEventListener('scroll', () => {
-    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    elements.scrollThread.style.width = (winScroll / height) * 100 + "%";
+    cartBadge: document.getElementById('cart-badge'),
+    authBtn: document.getElementById('auth-btn'),
+    logoutHeaderBtn: document.getElementById('logout-header-btn'),
+    authModal: document.getElementById('auth-modal'),
+    authClose: document.getElementById('auth-close'),
+    cartDrawer: document.getElementById('cart-drawer'),
+    cartClose: document.getElementById('cart-close'),
+    adminOrders: document.getElementById('admin-orders-list'),
+    adminProducts: document.getElementById('admin-products-list'),
+    authForm: document.getElementById('auth-form'),
+    verifyForm: document.getElementById('verify-form'),
+    authTitle: document.getElementById('auth-title'),
+    authToggleBtn: document.getElementById('auth-toggle-btn'),
+    signupFields: document.getElementById('signup-fields'),
+    authMsg: document.getElementById('auth-msg'),
+    userDisplay: document.getElementById('user-display'),
+    roleDisplay: document.getElementById('role-display'),
+    loggedInBox: document.getElementById('logged-in-box'),
+    formContainer: document.getElementById('auth-form-container'),
+    logoBtn: document.getElementById('logo-btn'),
+    cartTrigger: document.getElementById('cart-trigger'),
+    authOverlay: document.getElementById('auth-overlay'),
+    cartOverlay: document.getElementById('cart-overlay-el'),
+    logoutBtn: document.getElementById('logout-btn'),
+    promoteAdminBtn: document.getElementById('promote-admin-btn'),
+    addProductBtn: document.getElementById('add-product-btn'),
+    checkoutBtn: document.getElementById('checkout-btn'),
+    completeOrderBtn: document.getElementById('complete-order-btn'),
+    verifyBackBtn: document.getElementById('verify-back-btn')
 });
 
-// --- RENDER PRODUCTS ---
-const renderProducts = () => {
-    elements.grid.innerHTML = '';
-    const filtered = PRODUCTS.filter(p => state.filters.category === 'All' || p.category === state.filters.category);
+let elements = {};
+
+// --- AUTH FLOW ---
+const toggleAuthMode = () => {
+    state.authMode = state.authMode === 'login' ? 'signup' : 'login';
+    if (elements.authTitle) elements.authTitle.innerText = state.authMode === 'login' ? 'Sign In' : 'Sign Up';
+    if (elements.authToggleBtn) elements.authToggleBtn.innerText = state.authMode === 'login' ? 'Sign Up for Access' : 'Back to Login';
     
-    if (filtered.length === 0) {
-        document.getElementById('no-results').classList.remove('hidden');
+    const toggleText = document.getElementById('auth-toggle-text');
+    if (toggleText) toggleText.innerText = state.authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
+    
+    if (elements.signupFields) elements.signupFields.classList.toggle('hidden', state.authMode === 'login');
+    
+    const submitBtn = document.getElementById('auth-submit-btn');
+    if (submitBtn) submitBtn.innerText = state.authMode === 'login' ? 'Sign In' : 'Create Account';
+};
+
+const updateSession = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    
+    if (session) {
+        state.user = session.user;
+        const { data: profile } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        state.profile = profile;
+        
+        // HARDCODED ADMIN PROMOTION
+        if (state.user.email === 'adithayashenali25@gmail.com' && (!state.profile || state.profile.role !== 'admin')) {
+            await _supabase.from('profiles').upsert({ id: state.user.id, email: state.user.email, role: 'admin' });
+            state.profile = { ...state.profile, role: 'admin' };
+        }
+
+        if (elements.authBtn) elements.authBtn.innerText = "My Profile";
+        if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.classList.remove('hidden');
+        if (elements.userDisplay) elements.userDisplay.innerText = state.profile?.full_name || state.user.email;
+        if (elements.roleDisplay) elements.roleDisplay.innerText = state.profile?.role === 'admin' ? 'Administrator' : 'Premium Member';
+        
+        if (elements.formContainer) elements.formContainer.classList.add('hidden');
+        if (elements.loggedInBox) elements.loggedInBox.classList.remove('hidden');
+
+        if (state.profile?.role === 'admin') {
+            state.view = 'admin';
+            if (elements.adminView) elements.adminView.classList.add('active');
+            if (elements.userView) elements.userView.classList.remove('active');
+        } else {
+            state.view = 'user';
+            if (elements.adminView) elements.adminView.classList.remove('active');
+            if (elements.userView) elements.userView.classList.add('active');
+        }
+        loadData();
     } else {
-        document.getElementById('no-results').classList.add('hidden');
-        filtered.forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'glass-royal rounded-[2rem] overflow-hidden group flex flex-col shadow-xl';
-            card.innerHTML = `
-                <div class="relative overflow-hidden aspect-[4/5] md:aspect-[3/4]">
-                    <img src="${p.image}" class="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110">
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-700"></div>
-                </div>
-                <div class="p-4 md:p-6 flex-grow flex flex-col">
-                    <div class="flex justify-between items-start mb-2">
-                        <h4 class="text-[10px] md:text-xs font-bold text-white uppercase tracking-widest">${p.name}</h4>
-                        <span class="text-amber-500 font-bold text-[9px] md:text-[10px]">Rs. ${p.price.toLocaleString()}</span>
-                    </div>
-                    <p class="text-[8px] md:text-[9px] text-gray-500 line-clamp-1 mb-4 italic">${p.description}</p>
-                    <div class="mt-auto pt-4 border-t border-amber-500/5 flex justify-between items-center text-[7px] md:text-[8px] uppercase tracking-widest text-amber-500/30">
-                        <span>${p.category}</span>
-                        <button onclick="window.addItemById('${p.id}')" class="text-amber-500 hover:text-white transition-colors">Selection +</button>
-                    </div>
-                </div>
-            `;
-            elements.grid.appendChild(card);
-        });
+        state.user = null;
+        state.profile = null;
+        if (elements.authBtn) elements.authBtn.innerText = "Sign In";
+        if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.classList.add('hidden');
+        if (elements.formContainer) elements.formContainer.classList.remove('hidden');
+        if (elements.loggedInBox) elements.loggedInBox.classList.add('hidden');
+        if (elements.adminView) elements.adminView.classList.remove('active');
+        if (elements.userView) elements.userView.classList.add('active');
     }
 };
 
-const renderFilters = () => {
-    const cats = ['All', ...Object.values(CATEGORIES)];
-    elements.filterBar.innerHTML = '';
-    cats.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = `px-5 py-2 text-[9px] md:text-[10px] uppercase tracking-[0.2em] rounded-full border transition-all flex-shrink-0 whitespace-nowrap ${
-            state.filters.category === cat ? 'bg-amber-500 border-amber-500 text-black font-extrabold' : 'border-white/5 text-white/30'
-        }`;
-        btn.innerText = cat;
-        btn.onclick = () => { state.filters.category = cat; renderFilters(); renderProducts(); };
-        elements.filterBar.appendChild(btn);
-    });
-};
+const handleAuth = async (e) => {
+    e.preventDefault();
+    const msg = elements.authMsg;
+    msg.innerText = "Please wait...";
+    msg.classList.remove('text-red-500');
 
-// --- CART LOGIC ---
-const updateCartUI = () => {
-    const total = state.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const count = state.cart.reduce((s, i) => s + i.quantity, 0);
-    elements.cartBadge.innerText = count;
-    elements.cartBadge.classList.toggle('hidden', count === 0);
-    elements.cartBadge.classList.toggle('flex', count > 0);
-    elements.cartTotal.innerText = `Rs. ${total.toLocaleString()}`;
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const name = document.getElementById('auth-name').value || 'Guest Member';
+    state.lastEmail = email;
 
-    elements.cartItems.innerHTML = '';
-    if (state.cart.length === 0) {
-        elements.cartItems.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-white/20 uppercase tracking-[0.5em] text-[10px]">Your treasury is empty</div>`;
+    if (state.authMode === 'signup') {
+        const { data, error } = await _supabase.auth.signUp({
+            email, password, options: { data: { full_name: name } }
+        });
+        
+        if (error) {
+            msg.innerText = error.message;
+            msg.classList.add('text-red-500');
+            return;
+        }
+
+        // Switch to OTP verify view
+        elements.authForm.classList.add('hidden');
+        elements.verifyForm.classList.remove('hidden');
+        msg.innerText = "Code sent to your email.";
     } else {
-        state.cart.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'flex space-x-4 items-center p-3 bg-white/5 rounded-2xl border border-white/5';
-            div.innerHTML = `
-                <img src="${item.image}" class="w-16 h-20 object-cover rounded-xl border border-amber-500/10">
-                <div class="flex-grow">
-                    <div class="flex justify-between text-[10px] font-bold text-white mb-2">
-                        <span>${item.name}</span>
-                        <button onclick="window.removeItem('${item.id}')" class="text-amber-500/20">✕</button>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center space-x-3 bg-black/40 px-3 py-1.5 rounded-full text-[10px]">
-                            <button onclick="window.updateQty('${item.id}', -1)">-</button>
-                            <span class="font-bold">${item.quantity}</span>
-                            <button onclick="window.updateQty('${item.id}', 1)">+</button>
-                        </div>
-                        <span class="text-amber-400 font-bold text-[10px]">Rs. ${(item.price * item.quantity).toLocaleString()}</span>
-                    </div>
-                </div>
-            `;
-            elements.cartItems.appendChild(div);
-        });
+        const { error } = await _supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            msg.innerText = "Login failed: " + error.message;
+            msg.classList.add('text-red-500');
+            return;
+        }
+        updateSession();
+        toggleModal('auth', false);
     }
 };
 
-window.addItemById = (id) => {
-    const p = PRODUCTS.find(prod => prod.id === id);
-    if (!p) return;
-    const exists = state.cart.find(i => i.id === p.id);
-    if (exists) exists.quantity++; else state.cart.push({...p, quantity: 1});
-    localStorage.setItem('shani_cart_v2', JSON.stringify(state.cart));
-    updateCartUI();
-    elements.cartDrawer.classList.add('active');
-};
+const handleVerify = async (e) => {
+    e.preventDefault();
+    const token = document.getElementById('verify-token').value;
+    const msg = elements.authMsg;
+    msg.innerText = "Verifying code...";
 
-window.removeItem = (id) => {
-    state.cart = state.cart.filter(i => i.id !== id);
-    localStorage.setItem('shani_cart_v2', JSON.stringify(state.cart));
-    updateCartUI();
-};
-
-window.updateQty = (id, d) => {
-    const item = state.cart.find(i => i.id === id);
-    if (item) {
-        item.quantity = Math.max(1, item.quantity + d);
-        localStorage.setItem('shani_cart_v2', JSON.stringify(state.cart));
-        updateCartUI();
-    }
-};
-
-// --- AI STYLIST WIZARD ---
-const AI_QUESTIONS = [
-    {
-        q: "What nature of presence do you wish to command?",
-        key: 'category',
-        options: Object.values(CATEGORIES)
-    },
-    {
-        q: "What era of legacy do you resonate with?",
-        key: 'ageGroup',
-        options: Object.values(AGE_GROUPS)
-    },
-    {
-        q: "Shall we proceed with this curated vision?",
-        key: 'final',
-        options: ["Manifest Selection", "Restart Journey"]
-    }
-];
-
-const renderAIWizard = () => {
-    const qData = AI_QUESTIONS[state.aiStep];
-    elements.aiQuestion.innerText = qData.q;
-    elements.aiOptions.innerHTML = '';
-    
-    qData.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.className = "w-full text-left p-5 md:p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10 text-[10px] md:text-xs uppercase tracking-[0.2em] text-amber-500 font-bold transition-all";
-        btn.innerText = opt;
-        btn.onclick = () => handleAISelection(opt);
-        elements.aiOptions.appendChild(btn);
-    });
-};
-
-const handleAISelection = (val) => {
-    if (state.aiStep === 0) state.aiSelections.category = val;
-    if (state.aiStep === 1) state.aiSelections.ageGroup = val;
-    
-    if (val === "Restart Journey") {
-        state.aiStep = 0;
-        renderAIWizard();
+    // 8 characters check
+    if (token.length < 6) {
+        msg.innerText = "Enter a valid code.";
         return;
     }
 
-    if (state.aiStep < AI_QUESTIONS.length - 1) {
-        state.aiStep++;
-        renderAIWizard();
-    } else {
-        // Final Manifestation
-        elements.aiWizard.classList.add('hidden');
-        elements.aiProcessing.classList.remove('hidden');
-        
-        setTimeout(() => {
-            state.filters.category = state.aiSelections.category;
-            renderFilters();
-            renderProducts();
-            
-            elements.aiDrawer.classList.remove('active');
-            // Reset for next time
-            setTimeout(() => {
-                state.aiStep = 0;
-                elements.aiWizard.classList.remove('hidden');
-                elements.aiProcessing.classList.add('hidden');
-            }, 500);
-            
-            window.scrollTo({ top: elements.filterBar.offsetTop - 100, behavior: 'smooth' });
-        }, 2000);
+    const { data, error } = await _supabase.auth.verifyOtp({
+        email: state.lastEmail,
+        token: token,
+        type: 'signup'
+    });
+
+    if (error) {
+        msg.innerText = "Invalid Code: " + error.message;
+        msg.classList.add('text-red-500');
+        return;
+    }
+
+    msg.innerText = "Verified successfully.";
+    setTimeout(() => {
+        updateSession();
+        elements.verifyForm.classList.add('hidden');
+        elements.authForm.classList.remove('hidden');
+        toggleModal('auth', false);
+    }, 1500);
+};
+
+// --- DATA & RENDERERS ---
+const loadData = async () => {
+    const { data: products } = await _supabase.from('products').select('*');
+    state.products = products || [];
+    renderProducts();
+
+    if (state.profile?.role === 'admin') {
+        const { data: orders } = await _supabase.from('orders').select('*').order('created_at', { ascending: false });
+        state.orders = orders || [];
+        renderAdminDashboard();
+        renderAdminStaff();
     }
 };
 
-// --- PARTICLES ---
+const renderProducts = () => {
+    if (!elements.productGrid) return;
+    elements.productGrid.innerHTML = '';
+    const filtered = state.products.filter(p => state.filters.category === 'All' || p.category === state.filters.category);
+    
+    filtered.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'glass-royal rounded-[2.5rem] overflow-hidden group shadow-2xl flex flex-col border border-white/5 transform transition-all hover:-translate-y-2';
+        div.innerHTML = `
+            <div class="relative overflow-hidden aspect-[3/4]">
+                <img src="${p.image}" class="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110">
+                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button onclick="window.addToCart('${p.id}')" class="bg-amber-500 text-black px-8 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-xl">Add to Cart</button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="text-[10px] font-bold text-white uppercase tracking-widest">${p.name}</h4>
+                    <span class="text-amber-500 font-bold text-[10px]">Rs. ${p.price.toLocaleString()}</span>
+                </div>
+                <p class="text-[8px] uppercase tracking-widest text-white/20">${p.category}</p>
+            </div>
+        `;
+        elements.productGrid.appendChild(div);
+    });
+};
+
+const renderAdminDashboard = () => {
+    if (!elements.adminOrders) return;
+    elements.adminOrders.innerHTML = '';
+    state.orders.forEach(o => {
+        const div = document.createElement('div');
+        div.className = 'admin-stat-card flex flex-col md:flex-row justify-between items-center gap-6';
+        div.innerHTML = `
+            <div class="text-center md:text-left">
+                <p class="text-[10px] text-amber-500/50 uppercase tracking-widest">Order #${o.id.slice(0,8)}</p>
+                <p class="text-sm font-bold gold-gradient">${o.customer_email}</p>
+                <p class="text-[9px] uppercase tracking-widest text-white/40 mt-1">${o.status} &bull; Rs. ${o.total.toLocaleString()}</p>
+            </div>
+            <select onchange="window.updateOrderStatus('${o.id}', this.value)" class="bg-black border border-amber-500/20 rounded-xl px-4 py-2 text-[9px] uppercase text-amber-500 outline-none">
+                <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
+                <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+            </select>
+        `;
+        elements.adminOrders.appendChild(div);
+    });
+
+    const revenue = state.orders.reduce((s,o) => s + o.total, 0);
+    const stock = state.products.reduce((s,p) => s + (p.stock || 0), 0);
+    if (document.getElementById('stat-revenue')) document.getElementById('stat-revenue').innerText = `Rs. ${revenue.toLocaleString()}`;
+    if (document.getElementById('stat-orders')) document.getElementById('stat-orders').innerText = state.orders.length;
+    if (document.getElementById('stat-stock')) document.getElementById('stat-stock').innerText = stock;
+
+    if (!elements.adminProducts) return;
+    elements.adminProducts.innerHTML = '';
+    state.products.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'admin-stat-card flex items-center gap-5';
+        div.innerHTML = `
+            <img src="${p.image}" class="w-16 h-16 rounded-2xl object-cover border border-white/10 shadow-lg">
+            <div class="flex-grow">
+                <p class="text-xs font-bold uppercase">${p.name}</p>
+                <p class="text-[9px] text-amber-500/50 mt-1">Stock: ${p.stock || 0} &bull; ${p.category}</p>
+            </div>
+            <button onclick="window.editProduct('${p.id}')" class="text-[9px] uppercase text-amber-500 font-bold hover:scale-110 transition-all">Edit</button>
+        `;
+        elements.adminProducts.appendChild(div);
+    });
+};
+
+const renderAdminStaff = async () => {
+    const { data: staff } = await _supabase.from('profiles').select('*').eq('role', 'admin');
+    const container = document.getElementById('admin-staff-list');
+    if (container && staff) {
+        container.innerHTML = staff.map(s => `
+            <div class="flex justify-between items-center text-[10px] text-white/50 bg-white/5 p-4 rounded-2xl border border-amber-500/10">
+                <span class="truncate w-40">${s.email}</span>
+                <span class="text-[8px] text-amber-500 font-bold uppercase tracking-widest border border-amber-500/30 px-2 py-1 rounded-full">Admin</span>
+            </div>
+        `).join('');
+    }
+};
+
+window.promoteAdmin = async () => {
+    const emailInput = document.getElementById('new-admin-email');
+    const email = emailInput ? emailInput.value : '';
+    if (!email) return;
+    const { error } = await _supabase.from('profiles').update({ role: 'admin' }).eq('email', email);
+    if (error) alert("Error: " + error.message);
+    else { 
+        alert(`Admin status granted to ${email}.`); 
+        loadData(); 
+        emailInput.value = '';
+    }
+};
+
+// --- CORE ---
+window.addToCart = (id) => {
+    const p = state.products.find(x => x.id === id);
+    if (!p) return;
+    const existing = state.cart.find(x => x.id === id);
+    if (existing) existing.qty++; else state.cart.push({...p, qty: 1});
+    updateCartUI();
+    toggleDrawer('cart', true);
+};
+
+const updateCartUI = () => {
+    if (!elements.cartItems) return;
+    elements.cartItems.innerHTML = '';
+    let total = 0;
+    state.cart.forEach(item => {
+        total += item.price * item.qty;
+        const div = document.createElement('div');
+        div.className = 'flex space-x-4 items-center bg-white/5 p-4 rounded-3xl border border-white/5';
+        div.innerHTML = `
+            <img src="${item.image}" class="w-16 h-20 object-cover rounded-2xl">
+            <div class="flex-grow">
+                <p class="text-xs font-bold uppercase truncate">${item.name}</p>
+                <p class="text-amber-400 text-[10px] mt-1">Rs. ${item.price.toLocaleString()} x ${item.qty}</p>
+            </div>
+            <button onclick="window.removeFromCart('${item.id}')" class="text-white/20 hover:text-white">✕</button>
+        `;
+        elements.cartItems.appendChild(div);
+    });
+    if (elements.cartTotal) elements.cartTotal.innerText = `Rs. ${total.toLocaleString()}`;
+    if (elements.cartBadge) {
+        elements.cartBadge.innerText = state.cart.reduce((s,i) => s + i.qty, 0);
+        elements.cartBadge.classList.toggle('hidden', state.cart.length === 0);
+    }
+};
+
+window.removeFromCart = (id) => {
+    state.cart = state.cart.filter(x => x.id !== id);
+    updateCartUI();
+};
+
+window.updateOrderStatus = async (id, status) => {
+    await _supabase.from('orders').update({ status }).eq('id', id);
+    loadData();
+};
+
+window.editProduct = (id) => {
+    const p = state.products.find(x => x.id === id);
+    if (!p) return;
+    const newStock = prompt(`Update stock for ${p.name}:`, p.stock);
+    if (newStock !== null) _supabase.from('products').update({ stock: parseInt(newStock) }).eq('id', id).then(() => loadData());
+};
+
+const toggleModal = (id, show) => {
+    const m = document.getElementById(`${id}-modal`);
+    if (m) m.classList.toggle('active', show);
+};
+
+const toggleDrawer = (id, show) => {
+    const d = document.getElementById(`${id}-drawer`);
+    if (d) d.classList.toggle('active', show);
+};
+
+// --- INIT ---
+document.addEventListener('DOMContentLoaded', async () => {
+    elements = getElements();
+    updateSession();
+    
+    if (elements.authBtn) elements.authBtn.onclick = () => toggleModal('auth', true);
+    if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.onclick = async () => { await _supabase.auth.signOut(); updateSession(); };
+    if (elements.authClose) elements.authClose.onclick = () => toggleModal('auth', false);
+    if (elements.authOverlay) elements.authOverlay.onclick = () => toggleModal('auth', false);
+    if (elements.authToggleBtn) elements.authToggleBtn.onclick = toggleAuthMode;
+    if (elements.authForm) elements.authForm.onsubmit = handleAuth;
+    if (elements.verifyForm) elements.verifyForm.onsubmit = handleVerify;
+    if (elements.verifyBackBtn) elements.verifyBackBtn.onclick = () => {
+        elements.verifyForm.classList.add('hidden');
+        elements.authForm.classList.remove('hidden');
+    };
+
+    if (elements.logoutBtn) elements.logoutBtn.onclick = async () => { await _supabase.auth.signOut(); updateSession(); };
+    if (elements.promoteAdminBtn) elements.promoteAdminBtn.onclick = window.promoteAdmin;
+
+    if (elements.logoBtn) elements.logoBtn.onclick = () => {
+        elements.userView.classList.add('active');
+        elements.adminView.classList.remove('active');
+    };
+
+    if (elements.cartTrigger) elements.cartTrigger.onclick = () => toggleDrawer('cart', true);
+    if (elements.cartClose) elements.cartClose.onclick = () => toggleDrawer('cart', false);
+    if (elements.cartOverlay) elements.cartOverlay.onclick = () => toggleDrawer('cart', false);
+    
+    if (elements.checkoutBtn) elements.checkoutBtn.onclick = () => {
+        if (!state.user) return toggleModal('auth', true);
+        document.getElementById('cart-footer').classList.add('hidden');
+        document.getElementById('payment-section').classList.remove('hidden');
+    };
+
+    if (elements.completeOrderBtn) elements.completeOrderBtn.onclick = async () => {
+        const total = state.cart.reduce((s,i) => s + (i.price * i.qty), 0);
+        const { error } = await _supabase.from('orders').insert({
+            user_id: state.user.id,
+            customer_email: state.user.email,
+            items: state.cart,
+            total: total,
+            status: 'Pending'
+        });
+        if (!error) {
+            alert("Payment successful. Your order is being processed.");
+            state.cart = []; updateCartUI();
+            toggleDrawer('cart', false);
+            document.getElementById('cart-footer').classList.remove('hidden');
+            document.getElementById('payment-section').classList.add('hidden');
+        } else {
+            alert("Error: " + error.message);
+        }
+    };
+
+    const cats = ['All', 'Evening Wear', 'Royal Occasions', 'Business Elite', 'Imperial Bridal', 'Casual Luxe'];
+    if (elements.filterBar) {
+        cats.forEach(c => {
+            const b = document.createElement('button');
+            b.className = "px-6 py-2.5 text-[9px] uppercase tracking-widest rounded-full border border-white/5 text-white/30 whitespace-nowrap hover:border-amber-500/50 transition-all";
+            b.innerText = c;
+            b.onclick = () => {
+                state.filters.category = c;
+                Array.from(elements.filterBar.children).forEach(ch => {
+                    ch.classList.remove('bg-amber-500', 'text-black', 'border-amber-500');
+                    ch.classList.add('text-white/30', 'border-white/5');
+                });
+                b.classList.add('bg-amber-500', 'text-black', 'border-amber-500');
+                renderProducts();
+            };
+            elements.filterBar.appendChild(b);
+        });
+    }
+
+    const slides = document.querySelectorAll('.hero-slide');
+    if (slides.length > 0) {
+        setInterval(() => {
+            slides[state.heroIndex].classList.remove('active');
+            state.heroIndex = (state.heroIndex + 1) % slides.length;
+            slides[state.heroIndex].classList.add('active');
+        }, 6000);
+    }
+    
+    if (elements.addProductBtn) elements.addProductBtn.onclick = () => {
+        const name = prompt("Product Name:");
+        const price = prompt("Price (Rs):");
+        const category = prompt("Category:", "Evening Wear");
+        const image = prompt("Image URL:");
+        if (name && price && image) {
+            _supabase.from('products').insert({
+                name, price: parseInt(price), category, image, stock: 5
+            }).then(() => loadData());
+        }
+    };
+});
+
+// Particles
 const initParticles = () => {
     const canvas = document.getElementById('particle-canvas');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let particles = [];
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
     window.addEventListener('mousemove', (e) => {
-        for(let i=0; i<3; i++) {
-            particles.push({
-                x: e.clientX, y: e.clientY,
-                vx: (Math.random()-0.5)*2.5, vy: (Math.random()-0.5)*2.5,
-                life: 1, size: Math.random()*2.5
-            });
-        }
+        for(let i=0; i<3; i++) particles.push({ x: e.clientX, y: e.clientY, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2, life: 1, size: Math.random()*2 });
     });
-
     const animate = () => {
         ctx.clearRect(0,0,canvas.width, canvas.height);
-        particles.forEach((p, idx) => {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.015;
-            if(p.life <= 0) particles.splice(idx, 1);
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.01;
+            if(p.life <= 0) particles.splice(i, 1);
             ctx.fillStyle = `rgba(180, 138, 62, ${p.life})`;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(255, 225, 169, 0.5)';
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
         });
         requestAnimationFrame(animate);
     };
     animate();
 };
-
-// --- INIT ---
-document.addEventListener('DOMContentLoaded', () => {
-    renderFilters();
-    renderProducts();
-    updateCartUI();
-    initHero();
-    initParticles();
-    renderAIWizard();
-
-    // Event Handlers
-    elements.cartTrigger.onclick = () => elements.cartDrawer.classList.add('active');
-    document.getElementById('cart-close-btn').onclick = () => elements.cartDrawer.classList.remove('active');
-    document.getElementById('cart-overlay').onclick = () => elements.cartDrawer.classList.remove('active');
-
-    elements.aiTrigger.onclick = () => elements.aiDrawer.classList.add('active');
-    elements.aiClose.onclick = () => elements.aiDrawer.classList.remove('active');
-    elements.aiOverlay.onclick = () => elements.aiDrawer.classList.remove('active');
-
-    document.getElementById('checkout-btn').onclick = () => {
-        if(state.cart.length === 0) return;
-        const btn = document.getElementById('checkout-btn');
-        btn.innerText = "Consulting the Royal Treasury...";
-        btn.disabled = true;
-        
-        setTimeout(() => {
-            alert("Acquisition Successful. Your artifacts are being prepared at the Shani Atelier.");
-            state.cart = [];
-            localStorage.setItem('shani_cart_v2', '[]');
-            updateCartUI();
-            elements.cartDrawer.classList.remove('active');
-            btn.innerText = "Complete Acquisition";
-            btn.disabled = false;
-        }, 2500);
-    };
-});
+initParticles();

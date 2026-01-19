@@ -1,6 +1,6 @@
 {
-  "name": "SHANI FASHION - Royal Elegance",
-  "description": "A high-end, luxury e-commerce experience for women's fashion featuring royal themes, magical particle animations, and advanced filtering.",
+  "name": "SHANI FASHION - Full Stack",
+  "description": "Premium E-commerce with Supabase Auth, Admin Dashboard, and real-time inventory management.",
   "requestFramePermissions": [
     "camera"
   ]
