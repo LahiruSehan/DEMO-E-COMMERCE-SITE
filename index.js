@@ -13,7 +13,7 @@ let state = {
     view: 'user', 
     filters: { category: 'All' },
     heroIndex: 0,
-    authMode: 'login', // 'login' or 'signup'
+    authMode: 'login',
     lastEmail: ''
 };
 
@@ -47,13 +47,15 @@ const getElements = () => ({
     logoBtn: document.getElementById('logo-btn'),
     cartTrigger: document.getElementById('cart-trigger'),
     authOverlay: document.getElementById('auth-overlay'),
-    cartOverlay: document.getElementById('cart-overlay-el'),
+    cartOverlay: document.getElementById('cart-overlay'),
     logoutBtn: document.getElementById('logout-btn'),
-    promoteAdminBtn: document.getElementById('promote-admin-btn'),
     addProductBtn: document.getElementById('add-product-btn'),
     checkoutBtn: document.getElementById('checkout-btn'),
     completeOrderBtn: document.getElementById('complete-order-btn'),
-    verifyBackBtn: document.getElementById('verify-back-btn')
+    verifyBackBtn: document.getElementById('verify-back-btn'),
+    secretInput: document.getElementById('admin-secret-code'),
+    adminToggleBox: document.getElementById('admin-toggle-box'),
+    isAdminCheckbox: document.getElementById('is-admin-checkbox')
 });
 
 let elements = {};
@@ -61,139 +63,149 @@ let elements = {};
 // --- AUTH FLOW ---
 const toggleAuthMode = () => {
     state.authMode = state.authMode === 'login' ? 'signup' : 'login';
-    if (elements.authTitle) elements.authTitle.innerText = state.authMode === 'login' ? 'Sign In' : 'Create Account';
-    if (elements.authToggleBtn) elements.authToggleBtn.innerText = state.authMode === 'login' ? 'Sign Up for Access' : 'Back to Login';
+    const els = getElements();
+    els.authTitle.innerText = state.authMode === 'login' ? 'Sign In' : 'Create Account';
+    els.authToggleBtn.innerText = state.authMode === 'login' ? 'Create Account' : 'Back to Login';
+    document.getElementById('auth-toggle-text').innerText = state.authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
+    els.signupFields.classList.toggle('hidden', state.authMode === 'login');
+    document.getElementById('auth-submit-btn').innerText = state.authMode === 'login' ? 'Sign In' : 'Register';
+    els.authMsg.innerText = '';
     
-    const toggleText = document.getElementById('auth-toggle-text');
-    if (toggleText) toggleText.innerText = state.authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
-    
-    if (elements.signupFields) elements.signupFields.classList.toggle('hidden', state.authMode === 'login');
-    
-    const submitBtn = document.getElementById('auth-submit-btn');
-    if (submitBtn) submitBtn.innerText = state.authMode === 'login' ? 'Sign In' : 'Register';
+    // Reset admin unlock UI
+    els.secretInput.value = '';
+    els.adminToggleBox.classList.add('hidden');
+    els.isAdminCheckbox.checked = false;
 };
 
 const updateSession = async () => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    
+    const { data: { session }, error } = await _supabase.auth.getSession();
+    const els = getElements();
+
     if (session) {
         state.user = session.user;
         const { data: profile } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
         state.profile = profile;
-        
-        // Ensure hardcoded admin email has the admin role in the profile table
-        if (state.user.email === 'adithayashenali25@gmail.com') {
-            if (!state.profile || state.profile.role !== 'admin') {
-                await _supabase.from('profiles').upsert({ id: state.user.id, email: state.user.email, role: 'admin', full_name: 'Admin Shenali' });
-                state.profile = { ...state.profile, role: 'admin', full_name: 'Admin Shenali' };
-            }
-        }
 
-        if (elements.authBtn) elements.authBtn.innerText = "Account";
-        if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.classList.remove('hidden');
-        if (elements.userDisplay) elements.userDisplay.innerText = state.profile?.full_name || state.user.email;
-        if (elements.roleDisplay) elements.roleDisplay.innerText = state.profile?.role === 'admin' ? 'Administrator' : 'Verified Member';
+        els.authBtn.innerText = "Account";
+        els.logoutHeaderBtn.classList.remove('hidden');
+        els.userDisplay.innerText = state.profile?.full_name || state.user.email;
+        els.roleDisplay.innerText = state.profile?.role === 'admin' ? 'Administrator' : 'Premium Member';
         
-        if (elements.formContainer) elements.formContainer.classList.add('hidden');
-        if (elements.loggedInBox) elements.loggedInBox.classList.remove('hidden');
+        els.formContainer.classList.add('hidden');
+        els.loggedInBox.classList.remove('hidden');
 
         if (state.profile?.role === 'admin') {
             state.view = 'admin';
-            if (elements.adminView) elements.adminView.classList.add('active');
-            if (elements.userView) elements.userView.classList.remove('active');
+            els.adminView.classList.add('active');
+            els.userView.classList.remove('active');
         } else {
             state.view = 'user';
-            if (elements.adminView) elements.adminView.classList.remove('active');
-            if (elements.userView) elements.userView.classList.add('active');
+            els.adminView.classList.remove('active');
+            els.userView.classList.add('active');
         }
         loadData();
     } else {
         state.user = null;
         state.profile = null;
-        if (elements.authBtn) elements.authBtn.innerText = "Sign In";
-        if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.classList.add('hidden');
-        if (elements.formContainer) elements.formContainer.classList.remove('hidden');
-        if (elements.loggedInBox) elements.loggedInBox.classList.add('hidden');
-        if (elements.adminView) elements.adminView.classList.remove('active');
-        if (elements.userView) elements.userView.classList.add('active');
+        els.authBtn.innerText = "Sign In";
+        els.logoutHeaderBtn.classList.add('hidden');
+        els.formContainer.classList.remove('hidden');
+        els.loggedInBox.classList.add('hidden');
+        els.adminView.classList.remove('active');
+        els.userView.classList.add('active');
     }
 };
 
 const handleAuth = async (e) => {
     e.preventDefault();
-    const msg = elements.authMsg;
-    msg.innerText = "Verifying details...";
-    msg.classList.remove('text-red-500');
+    const els = getElements();
+    els.authMsg.innerText = "Establishing secure connection...";
+    els.authMsg.classList.remove('text-red-500');
 
-    const email = document.getElementById('auth-email').value;
+    const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
-    const name = document.getElementById('auth-name').value || 'New Member';
+    const name = document.getElementById('auth-name').value || 'New Customer';
+    
+    // Check for secret code and checkbox
+    const role = (els.isAdminCheckbox.checked && els.secretInput.value === '251025') ? 'admin' : 'user';
+    
     state.lastEmail = email;
 
     if (state.authMode === 'signup') {
         const { error } = await _supabase.auth.signUp({
-            email, password, options: { data: { full_name: name } }
+            email,
+            password,
+            options: { 
+                data: { 
+                    full_name: name,
+                    role: role // This is picked up by our SQL trigger
+                } 
+            }
         });
         
         if (error) {
-            msg.innerText = error.message;
-            msg.classList.add('text-red-500');
+            els.authMsg.innerText = error.message;
+            els.authMsg.classList.add('text-red-500');
             return;
         }
 
-        // Switch to OTP verify view
-        elements.authForm.classList.add('hidden');
-        elements.verifyForm.classList.remove('hidden');
-        msg.innerText = "Check your email for the code.";
+        els.authForm.classList.add('hidden');
+        els.verifyForm.classList.remove('hidden');
+        els.authMsg.innerText = "Success! Verification code sent to your email.";
+        els.authMsg.classList.remove('text-red-500');
     } else {
+        // Login
         const { error } = await _supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            msg.innerText = "Invalid login credentials.";
-            msg.classList.add('text-red-500');
+            els.authMsg.innerText = "Access denied: Invalid credentials.";
+            els.authMsg.classList.add('text-red-500');
             return;
         }
-        updateSession();
+        await updateSession();
         toggleModal('auth', false);
     }
 };
 
 const handleVerify = async (e) => {
     e.preventDefault();
+    const els = getElements();
     const token = document.getElementById('verify-token').value.trim();
-    const msg = elements.authMsg;
     
-    // Support 8 characters as requested
+    // Robust validation for 8 characters (Supabase default is 6, but user specified 8)
     if (token.length < 6) {
-        msg.innerText = "Please enter the full code.";
-        msg.classList.add('text-red-500');
+        els.authMsg.innerText = "The code is incomplete.";
+        els.authMsg.classList.add('text-red-500');
         return;
     }
 
-    msg.innerText = "Confirming code...";
-    msg.classList.remove('text-red-500');
+    els.authMsg.innerText = "Verifying imperial token...";
+    els.authMsg.classList.remove('text-red-500');
 
     const { error } = await _supabase.auth.verifyOtp({
         email: state.lastEmail,
         token: token,
-        type: 'signup'
+        type: 'signup' // or 'email' depending on Supabase version
     });
 
     if (error) {
-        msg.innerText = "Verification failed: " + error.message;
-        msg.classList.add('text-red-500');
+        els.authMsg.innerText = "Verification failed: " + error.message;
+        els.authMsg.classList.add('text-red-500');
+        console.error("Verification error:", error);
         return;
     }
 
-    msg.innerText = "Account verified.";
-    setTimeout(() => {
-        updateSession();
-        elements.verifyForm.classList.add('hidden');
-        elements.authForm.classList.remove('hidden');
+    els.authMsg.innerText = "Success! Profile established.";
+    els.authMsg.classList.remove('text-red-500');
+    
+    setTimeout(async () => {
+        await updateSession();
+        els.verifyForm.classList.add('hidden');
+        els.authForm.classList.remove('hidden');
         toggleModal('auth', false);
-    }, 1200);
+    }, 1500);
 };
 
-// --- DATA & RENDERERS ---
+// --- DATA HANDLERS ---
 const loadData = async () => {
     const { data: products } = await _supabase.from('products').select('*');
     state.products = products || [];
@@ -208,22 +220,23 @@ const loadData = async () => {
 };
 
 const renderProducts = () => {
-    if (!elements.productGrid) return;
-    elements.productGrid.innerHTML = '';
+    const els = getElements();
+    if (!els.productGrid) return;
+    els.productGrid.innerHTML = '';
     const filtered = state.products.filter(p => state.filters.category === 'All' || p.category === state.filters.category);
     
     if (filtered.length === 0) {
-        elements.productGrid.innerHTML = '<div class="col-span-full py-20 text-center opacity-30 italic">No products found in this category.</div>';
+        els.productGrid.innerHTML = '<div class="col-span-full py-20 text-center opacity-30 italic">No items found in this collection.</div>';
     }
 
     filtered.forEach(p => {
         const div = document.createElement('div');
-        div.className = 'glass-royal rounded-[2.5rem] overflow-hidden group shadow-2xl flex flex-col border border-white/5 transform transition-all hover:-translate-y-2';
+        div.className = 'glass-card rounded-[2.5rem] overflow-hidden group shadow-2xl flex flex-col border border-white/5 transition-all hover:-translate-y-1';
         div.innerHTML = `
             <div class="relative overflow-hidden aspect-[3/4]">
                 <img src="${p.image}" class="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110" loading="lazy">
                 <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button onclick="window.addToCart('${p.id}')" class="bg-amber-500 text-black px-8 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-xl active:scale-95 transition-transform">Add to Cart</button>
+                    <button onclick="window.addToCart('${p.id}')" class="bg-amber-500 text-black px-8 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-xl active:scale-95 transition-all">Add to Cart</button>
                 </div>
             </div>
             <div class="p-6">
@@ -234,51 +247,51 @@ const renderProducts = () => {
                 <p class="text-[8px] uppercase tracking-widest text-white/20">${p.category}</p>
             </div>
         `;
-        elements.productGrid.appendChild(div);
+        els.productGrid.appendChild(div);
     });
 };
 
 const renderAdminDashboard = () => {
-    if (!elements.adminOrders) return;
-    elements.adminOrders.innerHTML = '';
+    const els = getElements();
+    if (!els.adminOrders) return;
+    els.adminOrders.innerHTML = '';
     state.orders.forEach(o => {
         const div = document.createElement('div');
-        div.className = 'admin-stat-card flex flex-col md:flex-row justify-between items-center gap-6';
+        div.className = 'stat-card flex flex-col md:flex-row justify-between items-center gap-6';
         div.innerHTML = `
             <div class="text-center md:text-left">
                 <p class="text-[10px] text-amber-500/50 uppercase tracking-widest">Order #${o.id.slice(0,8)}</p>
-                <p class="text-sm font-bold gold-gradient">${o.customer_email}</p>
+                <p class="text-sm font-bold gold-gradient truncate max-w-[200px]">${o.customer_email}</p>
                 <p class="text-[9px] uppercase tracking-widest text-white/40 mt-1">${o.status} &bull; Rs. ${o.total.toLocaleString()}</p>
             </div>
-            <select onchange="window.updateOrderStatus('${o.id}', this.value)" class="bg-black border border-amber-500/20 rounded-xl px-4 py-2 text-[9px] uppercase text-amber-500 outline-none cursor-pointer">
+            <select onchange="window.updateOrderStatus('${o.id}', this.value)" class="bg-black border border-amber-500/20 rounded-xl px-4 py-2 text-[10px] uppercase text-amber-500 outline-none cursor-pointer">
                 <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
                 <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
                 <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
             </select>
         `;
-        elements.adminOrders.appendChild(div);
+        els.adminOrders.appendChild(div);
     });
 
     const revenue = state.orders.reduce((s,o) => s + o.total, 0);
     const stock = state.products.reduce((s,p) => s + (p.stock || 0), 0);
-    if (document.getElementById('stat-revenue')) document.getElementById('stat-revenue').innerText = `Rs. ${revenue.toLocaleString()}`;
-    if (document.getElementById('stat-orders')) document.getElementById('stat-orders').innerText = state.orders.length;
-    if (document.getElementById('stat-stock')) document.getElementById('stat-stock').innerText = stock;
+    document.getElementById('stat-revenue').innerText = `Rs. ${revenue.toLocaleString()}`;
+    document.getElementById('stat-orders').innerText = state.orders.length;
+    document.getElementById('stat-stock').innerText = stock;
 
-    if (!elements.adminProducts) return;
-    elements.adminProducts.innerHTML = '';
+    els.adminProducts.innerHTML = '';
     state.products.forEach(p => {
         const div = document.createElement('div');
-        div.className = 'admin-stat-card flex items-center gap-5';
+        div.className = 'stat-card flex items-center gap-5';
         div.innerHTML = `
             <img src="${p.image}" class="w-16 h-16 rounded-2xl object-cover border border-white/10 shadow-lg">
             <div class="flex-grow">
                 <p class="text-xs font-bold uppercase">${p.name}</p>
                 <p class="text-[9px] text-amber-500/50 mt-1">Stock: ${p.stock || 0} &bull; ${p.category}</p>
             </div>
-            <button onclick="window.editProduct('${p.id}')" class="text-[9px] uppercase text-amber-500 font-bold hover:scale-110 transition-all">Edit</button>
+            <button onclick="window.editProduct('${p.id}')" class="text-[10px] uppercase text-amber-500 font-bold hover:scale-110 transition-all">Edit</button>
         `;
-        elements.adminProducts.appendChild(div);
+        els.adminProducts.appendChild(div);
     });
 };
 
@@ -287,7 +300,7 @@ const renderAdminStaff = async () => {
     const container = document.getElementById('admin-staff-list');
     if (container && staff) {
         container.innerHTML = staff.map(s => `
-            <div class="flex justify-between items-center text-[10px] text-white/50 bg-white/5 p-4 rounded-2xl border border-amber-500/10">
+            <div class="flex justify-between items-center text-[10px] text-white/50 bg-white/5 p-4 rounded-xl border border-amber-500/10">
                 <span class="truncate w-40">${s.email}</span>
                 <span class="text-[8px] text-amber-500 font-bold uppercase tracking-widest border border-amber-500/30 px-2 py-1 rounded-full">Admin</span>
             </div>
@@ -295,20 +308,7 @@ const renderAdminStaff = async () => {
     }
 };
 
-window.promoteAdmin = async () => {
-    const emailInput = document.getElementById('new-admin-email');
-    const email = emailInput ? emailInput.value : '';
-    if (!email) return;
-    const { error } = await _supabase.from('profiles').update({ role: 'admin' }).eq('email', email);
-    if (error) alert("Admin update failed: " + error.message);
-    else { 
-        alert(`Admin status granted to ${email}.`); 
-        loadData(); 
-        emailInput.value = '';
-    }
-};
-
-// --- CORE ---
+// --- CORE FUNCTIONS ---
 window.addToCart = (id) => {
     const p = state.products.find(x => x.id === id);
     if (!p) return;
@@ -319,28 +319,26 @@ window.addToCart = (id) => {
 };
 
 const updateCartUI = () => {
-    if (!elements.cartItems) return;
-    elements.cartItems.innerHTML = '';
+    const els = getElements();
+    els.cartItems.innerHTML = '';
     let total = 0;
     state.cart.forEach(item => {
         total += item.price * item.qty;
         const div = document.createElement('div');
-        div.className = 'flex space-x-4 items-center bg-white/5 p-4 rounded-3xl border border-white/5';
+        div.className = 'flex space-x-4 items-center bg-white/5 p-4 rounded-2xl border border-white/5';
         div.innerHTML = `
-            <img src="${item.image}" class="w-16 h-20 object-cover rounded-2xl">
+            <img src="${item.image}" class="w-14 h-18 object-cover rounded-xl">
             <div class="flex-grow">
-                <p class="text-xs font-bold uppercase truncate">${item.name}</p>
+                <p class="text-[11px] font-bold uppercase truncate">${item.name}</p>
                 <p class="text-amber-400 text-[10px] mt-1">Rs. ${item.price.toLocaleString()} x ${item.qty}</p>
             </div>
             <button onclick="window.removeFromCart('${item.id}')" class="text-white/20 hover:text-white transition-colors">✕</button>
         `;
-        elements.cartItems.appendChild(div);
+        els.cartItems.appendChild(div);
     });
-    if (elements.cartTotal) elements.cartTotal.innerText = `Rs. ${total.toLocaleString()}`;
-    if (elements.cartBadge) {
-        elements.cartBadge.innerText = state.cart.reduce((s,i) => s + i.qty, 0);
-        elements.cartBadge.classList.toggle('hidden', state.cart.length === 0);
-    }
+    els.cartTotal.innerText = `Rs. ${total.toLocaleString()}`;
+    els.cartBadge.innerText = state.cart.reduce((s,i) => s + i.qty, 0);
+    els.cartBadge.classList.toggle('hidden', state.cart.length === 0);
 };
 
 window.removeFromCart = (id) => {
@@ -373,39 +371,50 @@ const toggleDrawer = (id, show) => {
 // --- INIT ---
 document.addEventListener('DOMContentLoaded', async () => {
     elements = getElements();
-    updateSession();
+    await updateSession();
     
-    if (elements.authBtn) elements.authBtn.onclick = () => toggleModal('auth', true);
-    if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.onclick = async () => { await _supabase.auth.signOut(); updateSession(); };
-    if (elements.authClose) elements.authClose.onclick = () => toggleModal('auth', false);
-    if (elements.authOverlay) elements.authOverlay.onclick = () => toggleModal('auth', false);
-    if (elements.authToggleBtn) elements.authToggleBtn.onclick = toggleAuthMode;
-    if (elements.authForm) elements.authForm.onsubmit = handleAuth;
-    if (elements.verifyForm) elements.verifyForm.onsubmit = handleVerify;
-    if (elements.verifyBackBtn) elements.verifyBackBtn.onclick = () => {
+    elements.authBtn.onclick = () => toggleModal('auth', true);
+    elements.logoutHeaderBtn.onclick = async () => { await _supabase.auth.signOut(); window.location.reload(); };
+    elements.authClose.onclick = () => toggleModal('auth', false);
+    elements.authOverlay.onclick = () => toggleModal('auth', false);
+    elements.authToggleBtn.onclick = toggleAuthMode;
+    elements.authForm.onsubmit = handleAuth;
+    elements.verifyForm.onsubmit = handleVerify;
+    elements.verifyBackBtn.onclick = () => {
         elements.verifyForm.classList.add('hidden');
         elements.authForm.classList.remove('hidden');
+        elements.authMsg.innerText = '';
     };
 
-    if (elements.logoutBtn) elements.logoutBtn.onclick = async () => { await _supabase.auth.signOut(); updateSession(); };
-    if (elements.promoteAdminBtn) elements.promoteAdminBtn.onclick = window.promoteAdmin;
+    // Secret Admin Unlock Logic
+    elements.secretInput.oninput = (e) => {
+        if (e.target.value === '251025') {
+            elements.adminToggleBox.classList.remove('hidden');
+        } else {
+            elements.adminToggleBox.classList.add('hidden');
+            elements.isAdminCheckbox.checked = false;
+        }
+    };
 
-    if (elements.logoBtn) elements.logoBtn.onclick = () => {
+    elements.logoutBtn.onclick = async () => { await _supabase.auth.signOut(); window.location.reload(); };
+
+    elements.logoBtn.onclick = () => {
         elements.userView.classList.add('active');
         elements.adminView.classList.remove('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    if (elements.cartTrigger) elements.cartTrigger.onclick = () => toggleDrawer('cart', true);
-    if (elements.cartClose) elements.cartClose.onclick = () => toggleDrawer('cart', false);
-    if (elements.cartOverlay) elements.cartOverlay.onclick = () => toggleDrawer('cart', false);
+    elements.cartTrigger.onclick = () => toggleDrawer('cart', true);
+    elements.cartClose.onclick = () => toggleDrawer('cart', false);
+    elements.cartOverlay.onclick = () => toggleDrawer('cart', false);
     
-    if (elements.checkoutBtn) elements.checkoutBtn.onclick = () => {
+    elements.checkoutBtn.onclick = () => {
         if (!state.user) return toggleModal('auth', true);
         document.getElementById('cart-footer').classList.add('hidden');
         document.getElementById('payment-section').classList.remove('hidden');
     };
 
-    if (elements.completeOrderBtn) elements.completeOrderBtn.onclick = async () => {
+    elements.completeOrderBtn.onclick = async () => {
         const total = state.cart.reduce((s,i) => s + (i.price * i.qty), 0);
         const { error } = await _supabase.from('orders').insert({
             user_id: state.user.id,
@@ -415,21 +424,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             status: 'Pending'
         });
         if (!error) {
-            alert("Order placed successfully. Thank you for shopping with Shani Fashion.");
+            alert("Order confirmed. Shani Fashion thanks you for your grace.");
             state.cart = []; updateCartUI();
             toggleDrawer('cart', false);
             document.getElementById('cart-footer').classList.remove('hidden');
             document.getElementById('payment-section').classList.add('hidden');
         } else {
-            alert("Order failed: " + error.message);
+            alert("Transaction Error: " + error.message);
         }
     };
 
-    const cats = ['All', 'Evening Wear', 'Royal Occasions', 'Business Elite', 'Imperial Bridal', 'Casual Luxe'];
+    const cats = ['All', 'Evening Wear', 'Occasions', 'Business', 'Bridal', 'Casual'];
     if (elements.filterBar) {
         cats.forEach(c => {
             const b = document.createElement('button');
-            b.className = "px-6 py-2.5 text-[9px] uppercase tracking-widest rounded-full border border-white/5 text-white/30 whitespace-nowrap hover:border-amber-500/50 transition-all";
+            b.className = "px-6 py-2 text-[10px] uppercase tracking-widest rounded-full border border-white/5 text-white/30 whitespace-nowrap hover:border-amber-500/50 transition-all";
             b.innerText = c;
             b.onclick = () => {
                 state.filters.category = c;
@@ -453,14 +462,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 6000);
     }
     
-    if (elements.addProductBtn) elements.addProductBtn.onclick = () => {
-        const name = prompt("Product Title:");
+    elements.addProductBtn.onclick = () => {
+        const name = prompt("Product Name:");
         const price = prompt("Price (Rs):");
         const category = prompt("Category:", "Evening Wear");
-        const image = prompt("Product Image URL:");
+        const image = prompt("Image URL:");
         if (name && price && image) {
             _supabase.from('products').insert({
-                name, price: parseInt(price), category, image, stock: 5
+                name, price: parseInt(price), category, image, stock: 10
             }).then(() => loadData());
         }
     };
