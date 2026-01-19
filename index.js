@@ -61,7 +61,7 @@ let elements = {};
 // --- AUTH FLOW ---
 const toggleAuthMode = () => {
     state.authMode = state.authMode === 'login' ? 'signup' : 'login';
-    if (elements.authTitle) elements.authTitle.innerText = state.authMode === 'login' ? 'Sign In' : 'Sign Up';
+    if (elements.authTitle) elements.authTitle.innerText = state.authMode === 'login' ? 'Sign In' : 'Create Account';
     if (elements.authToggleBtn) elements.authToggleBtn.innerText = state.authMode === 'login' ? 'Sign Up for Access' : 'Back to Login';
     
     const toggleText = document.getElementById('auth-toggle-text');
@@ -70,7 +70,7 @@ const toggleAuthMode = () => {
     if (elements.signupFields) elements.signupFields.classList.toggle('hidden', state.authMode === 'login');
     
     const submitBtn = document.getElementById('auth-submit-btn');
-    if (submitBtn) submitBtn.innerText = state.authMode === 'login' ? 'Sign In' : 'Create Account';
+    if (submitBtn) submitBtn.innerText = state.authMode === 'login' ? 'Sign In' : 'Register';
 };
 
 const updateSession = async () => {
@@ -81,16 +81,18 @@ const updateSession = async () => {
         const { data: profile } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
         state.profile = profile;
         
-        // HARDCODED ADMIN PROMOTION
-        if (state.user.email === 'adithayashenali25@gmail.com' && (!state.profile || state.profile.role !== 'admin')) {
-            await _supabase.from('profiles').upsert({ id: state.user.id, email: state.user.email, role: 'admin' });
-            state.profile = { ...state.profile, role: 'admin' };
+        // Ensure hardcoded admin email has the admin role in the profile table
+        if (state.user.email === 'adithayashenali25@gmail.com') {
+            if (!state.profile || state.profile.role !== 'admin') {
+                await _supabase.from('profiles').upsert({ id: state.user.id, email: state.user.email, role: 'admin', full_name: 'Admin Shenali' });
+                state.profile = { ...state.profile, role: 'admin', full_name: 'Admin Shenali' };
+            }
         }
 
-        if (elements.authBtn) elements.authBtn.innerText = "My Profile";
+        if (elements.authBtn) elements.authBtn.innerText = "Account";
         if (elements.logoutHeaderBtn) elements.logoutHeaderBtn.classList.remove('hidden');
         if (elements.userDisplay) elements.userDisplay.innerText = state.profile?.full_name || state.user.email;
-        if (elements.roleDisplay) elements.roleDisplay.innerText = state.profile?.role === 'admin' ? 'Administrator' : 'Premium Member';
+        if (elements.roleDisplay) elements.roleDisplay.innerText = state.profile?.role === 'admin' ? 'Administrator' : 'Verified Member';
         
         if (elements.formContainer) elements.formContainer.classList.add('hidden');
         if (elements.loggedInBox) elements.loggedInBox.classList.remove('hidden');
@@ -120,16 +122,16 @@ const updateSession = async () => {
 const handleAuth = async (e) => {
     e.preventDefault();
     const msg = elements.authMsg;
-    msg.innerText = "Please wait...";
+    msg.innerText = "Verifying details...";
     msg.classList.remove('text-red-500');
 
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    const name = document.getElementById('auth-name').value || 'Guest Member';
+    const name = document.getElementById('auth-name').value || 'New Member';
     state.lastEmail = email;
 
     if (state.authMode === 'signup') {
-        const { data, error } = await _supabase.auth.signUp({
+        const { error } = await _supabase.auth.signUp({
             email, password, options: { data: { full_name: name } }
         });
         
@@ -142,11 +144,11 @@ const handleAuth = async (e) => {
         // Switch to OTP verify view
         elements.authForm.classList.add('hidden');
         elements.verifyForm.classList.remove('hidden');
-        msg.innerText = "Code sent to your email.";
+        msg.innerText = "Check your email for the code.";
     } else {
         const { error } = await _supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            msg.innerText = "Login failed: " + error.message;
+            msg.innerText = "Invalid login credentials.";
             msg.classList.add('text-red-500');
             return;
         }
@@ -157,35 +159,38 @@ const handleAuth = async (e) => {
 
 const handleVerify = async (e) => {
     e.preventDefault();
-    const token = document.getElementById('verify-token').value;
+    const token = document.getElementById('verify-token').value.trim();
     const msg = elements.authMsg;
-    msg.innerText = "Verifying code...";
-
-    // 8 characters check
+    
+    // Support 8 characters as requested
     if (token.length < 6) {
-        msg.innerText = "Enter a valid code.";
+        msg.innerText = "Please enter the full code.";
+        msg.classList.add('text-red-500');
         return;
     }
 
-    const { data, error } = await _supabase.auth.verifyOtp({
+    msg.innerText = "Confirming code...";
+    msg.classList.remove('text-red-500');
+
+    const { error } = await _supabase.auth.verifyOtp({
         email: state.lastEmail,
         token: token,
         type: 'signup'
     });
 
     if (error) {
-        msg.innerText = "Invalid Code: " + error.message;
+        msg.innerText = "Verification failed: " + error.message;
         msg.classList.add('text-red-500');
         return;
     }
 
-    msg.innerText = "Verified successfully.";
+    msg.innerText = "Account verified.";
     setTimeout(() => {
         updateSession();
         elements.verifyForm.classList.add('hidden');
         elements.authForm.classList.remove('hidden');
         toggleModal('auth', false);
-    }, 1500);
+    }, 1200);
 };
 
 // --- DATA & RENDERERS ---
@@ -207,14 +212,18 @@ const renderProducts = () => {
     elements.productGrid.innerHTML = '';
     const filtered = state.products.filter(p => state.filters.category === 'All' || p.category === state.filters.category);
     
+    if (filtered.length === 0) {
+        elements.productGrid.innerHTML = '<div class="col-span-full py-20 text-center opacity-30 italic">No products found in this category.</div>';
+    }
+
     filtered.forEach(p => {
         const div = document.createElement('div');
         div.className = 'glass-royal rounded-[2.5rem] overflow-hidden group shadow-2xl flex flex-col border border-white/5 transform transition-all hover:-translate-y-2';
         div.innerHTML = `
             <div class="relative overflow-hidden aspect-[3/4]">
-                <img src="${p.image}" class="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110">
+                <img src="${p.image}" class="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110" loading="lazy">
                 <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button onclick="window.addToCart('${p.id}')" class="bg-amber-500 text-black px-8 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-xl">Add to Cart</button>
+                    <button onclick="window.addToCart('${p.id}')" class="bg-amber-500 text-black px-8 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-xl active:scale-95 transition-transform">Add to Cart</button>
                 </div>
             </div>
             <div class="p-6">
@@ -241,7 +250,7 @@ const renderAdminDashboard = () => {
                 <p class="text-sm font-bold gold-gradient">${o.customer_email}</p>
                 <p class="text-[9px] uppercase tracking-widest text-white/40 mt-1">${o.status} &bull; Rs. ${o.total.toLocaleString()}</p>
             </div>
-            <select onchange="window.updateOrderStatus('${o.id}', this.value)" class="bg-black border border-amber-500/20 rounded-xl px-4 py-2 text-[9px] uppercase text-amber-500 outline-none">
+            <select onchange="window.updateOrderStatus('${o.id}', this.value)" class="bg-black border border-amber-500/20 rounded-xl px-4 py-2 text-[9px] uppercase text-amber-500 outline-none cursor-pointer">
                 <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
                 <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
                 <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
@@ -291,7 +300,7 @@ window.promoteAdmin = async () => {
     const email = emailInput ? emailInput.value : '';
     if (!email) return;
     const { error } = await _supabase.from('profiles').update({ role: 'admin' }).eq('email', email);
-    if (error) alert("Error: " + error.message);
+    if (error) alert("Admin update failed: " + error.message);
     else { 
         alert(`Admin status granted to ${email}.`); 
         loadData(); 
@@ -323,7 +332,7 @@ const updateCartUI = () => {
                 <p class="text-xs font-bold uppercase truncate">${item.name}</p>
                 <p class="text-amber-400 text-[10px] mt-1">Rs. ${item.price.toLocaleString()} x ${item.qty}</p>
             </div>
-            <button onclick="window.removeFromCart('${item.id}')" class="text-white/20 hover:text-white">✕</button>
+            <button onclick="window.removeFromCart('${item.id}')" class="text-white/20 hover:text-white transition-colors">✕</button>
         `;
         elements.cartItems.appendChild(div);
     });
@@ -406,13 +415,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             status: 'Pending'
         });
         if (!error) {
-            alert("Payment successful. Your order is being processed.");
+            alert("Order placed successfully. Thank you for shopping with Shani Fashion.");
             state.cart = []; updateCartUI();
             toggleDrawer('cart', false);
             document.getElementById('cart-footer').classList.remove('hidden');
             document.getElementById('payment-section').classList.add('hidden');
         } else {
-            alert("Error: " + error.message);
+            alert("Order failed: " + error.message);
         }
     };
 
@@ -445,10 +454,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     if (elements.addProductBtn) elements.addProductBtn.onclick = () => {
-        const name = prompt("Product Name:");
+        const name = prompt("Product Title:");
         const price = prompt("Price (Rs):");
         const category = prompt("Category:", "Evening Wear");
-        const image = prompt("Image URL:");
+        const image = prompt("Product Image URL:");
         if (name && price && image) {
             _supabase.from('products').insert({
                 name, price: parseInt(price), category, image, stock: 5
